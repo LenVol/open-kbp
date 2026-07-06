@@ -1,11 +1,15 @@
 """ Neural net architectures """
 from typing import Optional
 
-from keras.engine.keras_tensor import KerasTensor
+import keras
+import tensorflow
+
+#from keras.engine.keras_tensor import KerasTensor
+from tensorflow.keras import KerasTensor
 from keras.layers import Activation, AveragePooling3D, Conv3D, Conv3DTranspose, Input, LeakyReLU, SpatialDropout3D, concatenate
-from keras.layers.normalization.batch_normalization import BatchNormalization
+from keras.layers import BatchNormalization
 from keras.models import Model
-from keras.optimizers.optimizer_v2.optimizer_v2 import OptimizerV2
+from keras.optimizers import Optimizer
 
 from provided_code.data_shapes import DataShapes
 
@@ -20,7 +24,7 @@ class DefineDoseFromCT:
         initial_number_of_filters: int,
         filter_size: tuple[int, int, int],
         stride_size: tuple[int, int, int],
-        gen_optimizer: OptimizerV2,
+        gen_optimizer: Optimizer,
     ):
         self.data_shapes = data_shapes
         self.initial_number_of_filters = initial_number_of_filters
