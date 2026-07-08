@@ -23,7 +23,7 @@ class PredictionModel(DefineDoseFromCT):
         super().__init__(
             data_shapes=data_loader.data_shapes,
             initial_number_of_filters=1,  # Recommend increasing to 64 +
-            filter_size=(4, 4, 4),
+            filter_size=(3, 3, 3),
             stride_size=(2, 2, 2),
             gen_optimizer=Adam(learning_rate=0.0002, beta_1=0.5, beta_2=0.999),
         )
