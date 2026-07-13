@@ -11,6 +11,10 @@ from provided_code.data_loader import DataLoader
 from provided_code.network_architectures import DefineDoseFromCT
 from provided_code.utils import get_paths, sparse_vector_function
 
+from keras import mixed_precision
+
+mixed_precision.set_global_policy('mixed_float16')
+
 
 class PredictionModel(DefineDoseFromCT):
     def __init__(self, data_loader: DataLoader, results_patent_path: Path, model_name: str, stage: str) -> None:
