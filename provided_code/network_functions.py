@@ -22,10 +22,11 @@ class PredictionModel(DefineDoseFromCT):
         """
         super().__init__(
             data_shapes=data_loader.data_shapes,
-            initial_number_of_filters=1,  # Recommend increasing to 64 +
+            initial_number_of_filters=32,  # Recommend increasing to 64 +
             filter_size=(3, 3, 3),
             stride_size=(2, 2, 2),
             gen_optimizer=Adam(learning_rate=0.0002, beta_1=0.5, beta_2=0.999),
+            training=(stage=="train")
         )
 
         # set attributes for data shape from data loader
@@ -73,7 +74,7 @@ class PredictionModel(DefineDoseFromCT):
             self.manage_model_storage(save_frequency, keep_model_history)
 
     def _set_epoch_start(self) -> None:
-        all_model_paths = get_paths(self.model_dir, extension="h5")
+        all_model_paths = get_paths(self.model_dir, extension="keras")
         for model_path in all_model_paths:
             *_, epoch_number = model_path.stem.split("epoch_")
             if epoch_number.isdigit():
@@ -108,7 +109,7 @@ class PredictionModel(DefineDoseFromCT):
 
     def _get_generator_path(self, epoch: Optional[int] = None) -> Path:
         epoch = epoch or self.current_epoch
-        return self.model_dir / f"epoch_{epoch}.h5"
+        return self.model_dir / f"epoch_{epoch}.keras"
 
     def predict_dose(self, epoch: int = 1) -> None:
         """Predicts the dose for the given epoch number"""

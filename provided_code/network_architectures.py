@@ -6,10 +6,10 @@ import tensorflow
 
 #from keras.engine.keras_tensor import KerasTensor
 from tensorflow.keras import KerasTensor
-from keras.layers import Activation, AveragePooling3D, Conv3D, Conv3DTranspose, Input, LeakyReLU, SpatialDropout3D, concatenate, MaxPooling3D, UpSampling3D
-from keras.layers import BatchNormalization
+from keras.layers import Activation, AveragePooling3D, Conv3D, Conv3DTranspose, Input, LeakyReLU, SpatialDropout3D, concatenate, MaxPooling3D, UpSampling3D, Dropout
+from keras.layers import BatchNormalization, GroupNormalization
 from keras.models import Model
-from keras.optimizers import Optimizer
+from keras.optimizers import Adam
 
 from provided_code.data_shapes import DataShapes
 
@@ -24,34 +24,39 @@ class DefineDoseFromCT:
         initial_number_of_filters: int,
         filter_size: tuple[int, int, int],
         stride_size: tuple[int, int, int],
-        gen_optimizer: Optimizer,
+        gen_optimizer: Adam,
+        training = True
     ):
         self.data_shapes = data_shapes
         self.initial_number_of_filters = initial_number_of_filters
         self.filter_size = filter_size
         self.stride_size = stride_size
         self.gen_optimizer = gen_optimizer
+        self.groups = self.initial_number_of_filters//4
+        self.training = training
 
     def make_convolution_block(self, x: KerasTensor, num_filters: int, strides: tuple=(1,1,1), use_batch_norm: bool = True) -> KerasTensor:
         x = Conv3D(num_filters, self.filter_size, strides=strides, padding="same", use_bias=False)(x)
         if use_batch_norm:
             x = BatchNormalization(momentum=0.99, epsilon=1e-3)(x)
         x = LeakyReLU(negative_slope=0.2)(x)
+        x = Dropout(0.1)(x, training=self.training)
         return x
 
 
     # Dense convolution block as in Wu et al. 2021 "Improving Proton Dose Calculation Accuracy by Using Deep Learning"
     def make_dense_convolution_block(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         y = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x)
-        y = BatchNormalization(momentum=0.99, epsilon=1e-3)(y)
+        y = GroupNormalization(self.groups, epsilon=1e-3)(y)
         y = LeakyReLU(negative_slope=0.2)(y)
+        y = SpatialDropout3D(0.1)(x,training=self.training)
         x = concatenate([x,y])
         return x
 
     def make_dense_pool(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         y = MaxPooling3D(pool_size=(2,2,2))(x)
         z = Conv3D(num_filters, self.filter_size, strides=(2,2,2), padding="same", use_bias=False)(x)
-        z = BatchNormalization(momentum=0.99, epsilon=1e-3)(z)
+        z = GroupNormalization(self.groups, epsilon=1e-3)(z)
         z = LeakyReLU(negative_slope=0.2)(z)
         x = concatenate([y,z])
         return x
@@ -59,7 +64,7 @@ class DefineDoseFromCT:
     def make_dense_upsampling(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         x = UpSampling3D(size=(2,2,2))(x)
         x = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x)
-        x = BatchNormalization(momentum=0.99, epsilon=1e-3)(x)
+        x = GroupNormalization(self.groups, epsilon=1e-3)(x)
         x = LeakyReLU(negative_slope=0.2)(x)
         return x
     
@@ -116,61 +121,58 @@ class DefineDoseFromCT:
     def define_generator(self) -> Model:
         # Define inputs
         ct_image = Input(self.data_shapes.ct)
-        print(ct_image.shape)
         roi_masks = Input(self.data_shapes.structure_masks)
         x = concatenate([ct_image,roi_masks])
     
-        num_filters = 1
+        num_filters = self.initial_number_of_filters
         ## encoder shape 128
         x1 = self.make_dense_convolution_block(x, num_filters)
         x1b = self.make_convolution_block(x1, num_filters)
+        print(x1b)
         x1c = self.make_dense_pool(x1b, num_filters)
 
 
         # shape 64
-        x2 = self.make_dense_convolution_block(x1c, num_filters)
-        x2b = self.make_dense_convolution_block(x2, num_filters)
-        x2c = self.make_dense_pool(x2b, num_filters)
+        x2 = self.make_dense_convolution_block(x1c, 2*num_filters)
+        x2b = self.make_dense_convolution_block(x2, 2*num_filters)
+        print(x2b)
+        x2c = self.make_dense_pool(x2b, 2*num_filters)
 
         #shape 32
-        x3 = self.make_dense_convolution_block(x2c, num_filters)
-        x3b = self.make_dense_convolution_block(x3, num_filters)
-        x3c = self.make_dense_pool(x3b, num_filters)
+        x3 = self.make_dense_convolution_block(x2c, 4*num_filters)
+        x3b = self.make_dense_convolution_block(x3, 4*num_filters)
+        x3c = self.make_dense_pool(x3b, 4*num_filters)
         
         #shape 16
-        x4 = self.make_dense_convolution_block(x3c, num_filters)
-        x4b = self.make_dense_convolution_block(x4, num_filters)
-        x4c = self.make_dense_pool(x4b, num_filters)
+        x4 = self.make_dense_convolution_block(x3c, 8*num_filters)
+        x4b = self.make_dense_convolution_block(x4, 8*num_filters)
+        x4c = self.make_dense_pool(x4b, 8*num_filters)
 
         ## Bottleneck shape 8 
-        x5 = self.make_dense_convolution_block(x4c, num_filters)
-        x5b = self.make_dense_convolution_block(x5, num_filters)
+        x5 = self.make_dense_convolution_block(x4c, 8*num_filters)
+        x5b = self.make_dense_convolution_block(x5, 8*num_filters)
 
 
         # decoder 
-        print(x5b.shape)
-        x6 = self.make_dense_upsampling(x5b, num_filters)
-        print(x6.shape)
+        x6 = self.make_dense_upsampling(x5b, 8*num_filters)
         x6b = concatenate([x4b,x6])
-        x6c = self.make_dense_convolution_block(x6b, num_filters)
-        x6d = self.make_dense_convolution_block(x6c, num_filters)
-        print(x6d.shape)
+        x6c = self.make_dense_convolution_block(x6b, 8*num_filters)
+        x6d = self.make_dense_convolution_block(x6c, 8*num_filters)
        
-        x7 = self.make_dense_upsampling(x6d, num_filters)
-        print(x7.shape)
+        x7 = self.make_dense_upsampling(x6d, 8*num_filters)
         x7b = concatenate([x3b,x7])
-        x7c = self.make_dense_convolution_block(x7b, num_filters)
-        x7d = self.make_dense_convolution_block(x7c, num_filters)
+        x7c = self.make_dense_convolution_block(x7b, 8*num_filters)
+        x7d = self.make_dense_convolution_block(x7c, 8*num_filters)
 
-        x8 = self.make_dense_upsampling(x7d, num_filters)
+        x8 = self.make_dense_upsampling(x7d, 4*num_filters)
         x8b = concatenate([x2b,x8])
-        x8c = self.make_dense_convolution_block(x8b, num_filters)
-        x8d = self.make_dense_convolution_block(x8c, num_filters)
+        x8c = self.make_dense_convolution_block(x8b, 4*num_filters)
+        x8d = self.make_dense_convolution_block(x8c, 4*num_filters)
 
-        x9 = self.make_dense_upsampling(x8d, num_filters)
+        x9 = self.make_dense_upsampling(x8d, 2*num_filters)
         x9b = concatenate([x1b,x9])
-        x9c = self.make_dense_convolution_block(x9b, num_filters)
-        x9d = self.make_dense_convolution_block(x9c, num_filters)
+        x9c = self.make_dense_convolution_block(x9b, 2*num_filters)
+        x9d = self.make_dense_convolution_block(x9c, 2*num_filters)
 
         x_final = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x9d)
 
@@ -178,7 +180,7 @@ class DefineDoseFromCT:
         
         # Compile model for use
         generator = Model(inputs=[ct_image, roi_masks], outputs=final_dose, name="generator")
-        generator.compile(loss="mean_absolute_error", optimizer=self.gen_optimizer)
+        generator.compile(loss="mean_squared_error", optimizer=self.gen_optimizer)
         generator.summary()
         return generator
 
