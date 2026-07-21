@@ -76,7 +76,7 @@ class DataLoader:
     def shuffle_data(self) -> None:
         np.random.shuffle(self.patient_paths)
 
-    def prepare_data(self, file_paths_to_load: List[Path]) -> DataBatch:
+    def prepare_data(self, file_paths_to_load: List[Path], augment=True) -> DataBatch:
         """Prepares data containing samples in batch so that they are loaded in the proper shape: (n_samples, *dim, n_channels)"""
 
         batch_data = DataBatch.initialize_from_required_data(self.required_files, self.batch_size)
@@ -87,8 +87,13 @@ class DataLoader:
         # Populate batch with requested data
         for index, patient_path in enumerate(file_paths_to_load):
             raw_data = self.load_data(patient_path)
+
             for key in self.required_files:
-                batch_data.set_values(key, index, self.shape_data(key, raw_data))
+                shaped_data = self.shape_data(key, raw_data)
+                #if augment:
+                #    print(shaped_data.size)
+
+                batch_data.set_values(key, index, shaped_data)
 
         return batch_data
 

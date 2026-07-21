@@ -13,7 +13,7 @@ from provided_code.utils import get_paths, sparse_vector_function
 
 from keras import mixed_precision
 
-mixed_precision.set_global_policy('mixed_float16')
+mixed_precision.set_global_policy('mixed_bfloat16')
 
 
 class PredictionModel(DefineDoseFromCT):
@@ -26,7 +26,7 @@ class PredictionModel(DefineDoseFromCT):
         """
         super().__init__(
             data_shapes=data_loader.data_shapes,
-            initial_number_of_filters=32,  # Recommend increasing to 64 +
+            initial_number_of_filters=8,  # Recommend increasing to 64 +
             filter_size=(3, 3, 3),
             stride_size=(2, 2, 2),
             gen_optimizer=Adam(learning_rate=0.0002, beta_1=0.5, beta_2=0.999),

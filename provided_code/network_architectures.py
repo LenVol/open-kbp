@@ -32,8 +32,17 @@ class DefineDoseFromCT:
         self.filter_size = filter_size
         self.stride_size = stride_size
         self.gen_optimizer = gen_optimizer
-        self.groups = self.initial_number_of_filters//4
+        self.groups = 4
         self.training = training
+
+    def _valid_group_count(self, channels: int) -> int:
+        channels = int(channels)
+
+        for groups in (8, 4, 2, 1):
+            if groups <= channels and channels % groups == 0:
+                return groups
+
+        return 1
 
     def make_convolution_block(self, x: KerasTensor, num_filters: int, strides: tuple=(1,1,1), use_batch_norm: bool = True) -> KerasTensor:
         x = Conv3D(num_filters, self.filter_size, strides=strides, padding="same", use_bias=False)(x)
@@ -47,16 +56,16 @@ class DefineDoseFromCT:
     # Dense convolution block as in Wu et al. 2021 "Improving Proton Dose Calculation Accuracy by Using Deep Learning"
     def make_dense_convolution_block(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         y = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x)
-        y = GroupNormalization(self.groups, epsilon=1e-3)(y)
+        y = GroupNormalization(self._valid_group_count(y.shape[-1]), epsilon=1e-3)(y)
         y = LeakyReLU(negative_slope=0.2)(y)
-        y = SpatialDropout3D(0.1)(x,training=self.training)
+        y = SpatialDropout3D(0.1)(y,training=self.training)
         x = concatenate([x,y])
         return x
 
     def make_dense_pool(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         y = MaxPooling3D(pool_size=(2,2,2))(x)
         z = Conv3D(num_filters, self.filter_size, strides=(2,2,2), padding="same", use_bias=False)(x)
-        z = GroupNormalization(self.groups, epsilon=1e-3)(z)
+        z = GroupNormalization(self._valid_group_count(z.shape[-1]), epsilon=1e-3)(z)
         z = LeakyReLU(negative_slope=0.2)(z)
         x = concatenate([y,z])
         return x
@@ -64,7 +73,7 @@ class DefineDoseFromCT:
     def make_dense_upsampling(self, x: KerasTensor, num_filters: int) -> KerasTensor:
         x = UpSampling3D(size=(2,2,2))(x)
         x = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x)
-        x = GroupNormalization(self.groups, epsilon=1e-3)(x)
+        x = GroupNormalization(self._valid_group_count(x.shape[-1]), epsilon=1e-3)(x)
         x = LeakyReLU(negative_slope=0.2)(x)
         return x
     
@@ -174,7 +183,7 @@ class DefineDoseFromCT:
         x9c = self.make_dense_convolution_block(x9b, 2*num_filters)
         x9d = self.make_dense_convolution_block(x9c, 2*num_filters)
 
-        x_final = Conv3D(num_filters, self.filter_size, strides=(1,1,1), padding="same", use_bias=False)(x9d)
+        x_final = Conv3D(1, kernel_size=1, strides=(1,1,1), padding="same", use_bias=False)(x9d)
 
         final_dose = Activation("relu")(x_final)
         
