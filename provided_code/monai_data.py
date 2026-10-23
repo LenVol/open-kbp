@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from monai.data import DataLoader, Dataset, list_data_collate
 from monai.transforms import (
-    CastToTyped, Compose, ConcatItemsd, DeleteItemsd, EnsureTyped,
+    Compose, ConcatItemsd, DeleteItemsd, EnsureTyped,
     MapTransform, RandCropByPosNegLabeld, ScaleIntensityRanged,
 )
 

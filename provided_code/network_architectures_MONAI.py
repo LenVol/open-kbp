@@ -8,7 +8,7 @@ from monai.networks.nets import UNet
 from provided_code.monai_data import N_INPUT_CHANNELS
 
 
-class DoseInference(nn.Module):
+class DosePredictionModel(nn.Module):
     """Small 3D U-Net baseline.
     THIS IS A GOOD PLACE FOR EXPERIMENTING
     """
