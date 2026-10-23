@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     model_name = "baseline"  # Name model to train and number of epochs to train it for
     test_time = False  # Only change this to True when the model has been fully tuned on the validation set
-    num_epochs = 1  # This should probably be increased to 100-200 after your dry run
+    num_epochs = 20  # This should probably be increased to 100-200 after your dry run
 
     # Define project directories
     primary_directory = Path().resolve()  # directory where everything is stored
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     dose_prediction_model_train = PredictionModel(
         data_loader_train, results_dir, model_name, "train",learning_rate=1e-3)
     
-    dose_prediction_model_train.train_model(num_epochs, save_frequency=1, keep_model_history=1)
+    dose_prediction_model_train.train_model(num_epochs, save_frequency=5, keep_model_history=1)
 
 
 
