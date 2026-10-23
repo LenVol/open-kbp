@@ -14,7 +14,7 @@ from monai.inferers import sliding_window_inference
 from tqdm.auto import tqdm
 
 from .monai_data import DOSE_SCALE, NPZDataSet
-from .network_architectures_MONAI import DoseInference
+from .network_architectures_MONAI import DosePredictionModel
 
 
 def masked_mae(
@@ -100,7 +100,7 @@ class PredictionModel:
         # ================================================================
         self.learning_rate = learning_rate
 
-        self.model = DoseInference().to(
+        self.model = DosePredictionModel().to(
             self.device
         )
 
@@ -288,9 +288,9 @@ class PredictionModel:
                 self._save_checkpoint(
                     epoch
                 )
-                # self._trim_model_history(
-                #     keep_model_history
-                # )
+                self._trim_model_history(
+                    keep_model_history
+                )
 
 
     def predict_dose(
