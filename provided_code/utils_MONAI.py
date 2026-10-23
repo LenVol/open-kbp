@@ -1,10 +1,9 @@
 import os
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional
+import shutil
 
 import numpy as np
-import pandas as pd
-from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 
 
@@ -131,3 +130,44 @@ def plot_validation_case(patient_path, prediction_dir):
     )
 
     plt.show()
+
+def create_submission_zip(
+    prediction_dir: Path,
+    submission_zip: Path,
+) -> None:
+    """Create a flat submission.zip containing one NPZ file per patient."""
+    prediction_dir = Path(prediction_dir)
+    submission_zip = Path(submission_zip)
+
+    prediction_files = sorted(prediction_dir.glob("*.npz"))
+
+    if not prediction_files:
+        raise FileNotFoundError(
+            f"No prediction NPZ files found in {prediction_dir}"
+        )
+
+    submission_zip.parent.mkdir(parents=True, exist_ok=True)
+
+    if submission_zip.exists():
+        submission_zip.unlink()
+
+    created_zip = Path(
+        shutil.make_archive(
+            base_name=str(submission_zip.with_suffix("")),
+            format="zip",
+            root_dir=prediction_dir,
+        )
+    )
+
+    if created_zip != submission_zip:
+        raise RuntimeError(
+            f"Unexpected submission archive path: {created_zip}"
+        )
+
+    print()
+    print(f"Submission created: {submission_zip}")
+    print(f"Prediction files: {len(prediction_files)}")
+    print(
+        "Submit this ZIP unchanged. It contains one <patient_id>.npz "
+        "prediction file per test patient."
+    )
