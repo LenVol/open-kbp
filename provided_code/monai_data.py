@@ -53,7 +53,7 @@ class LoadOpenKBPd(MapTransform):
 class NPZDataSet:
     def __init__(self, training_paths=(), validation_paths=(), cache_root="npz_cache",
                  patch_size: Sequence[int] = (64, 64, 64),
-                 train_batch_size=2, val_batch_size=1, num_workers=8,
+                 train_batch_size=2, val_batch_size=2, num_workers=2,
                  dose_scale=DOSE_SCALE):
         global DOSE_SCALE
         DOSE_SCALE = dose_scale

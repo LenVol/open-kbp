@@ -10,7 +10,7 @@ from provided_code.dose_evaluation_npz import DoseEvaluator
 if __name__ == "__main__":
 
     model_name = "baseline"  # Name model to train and number of epochs to train it for
-    test_time = True  # Only change this to True when you get the public-facing test patients 
+    test_time = False  # Only change this to True when you get the public-facing test patients 
     num_epochs = 50  # This should probably be increased to 100-200 after your dry run
 
     # Define project directories
@@ -32,7 +32,7 @@ if __name__ == "__main__":
    
     # This is the complete handler class for the data
     # Within the class, the data transforms are defined
-    dataset = NPZDataSet(training_paths=training_plan_paths,validation_paths=hold_out_plan_paths)
+    dataset = NPZDataSet(training_paths=training_plan_paths,validation_paths=hold_out_plan_paths,num_workers=2)
 
     # Model training
     if not test_time:
