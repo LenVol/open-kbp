@@ -56,7 +56,7 @@ if __name__ == "__main__":
         dose_prediction_model_train = PredictionModel(
             data_loader_train, results_dir, model_name, "train",learning_rate=1e-3)
 
-        dose_prediction_model_train.train_model(num_epochs, save_frequency=5, keep_model_history=1, resume_from=primary_directory/"results/baseline/models/epoch_5.pt")
+        dose_prediction_model_train.train_model(num_epochs, save_frequency=5, keep_model_history=1, resume_from=None)
 
     # Predict dose for the held out set
     data_loader_hold_out = dataset.predict_dataloader()
