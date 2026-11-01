@@ -20,7 +20,7 @@ INPUT_KEYS = ["ct", *STRUCTURES, "possible_dose_mask"]   # 12 channels
 N_INPUT_CHANNELS = len(INPUT_KEYS)
 
 # dose is kept in Gy in the arrays that reach the writer; the network only ever
-# sees/optimises dose / DOSE_SCALE.
+# sees/optimises dose / DOSE_SCALE. 
 DOSE_SCALE = 100.0
 
 
@@ -76,9 +76,9 @@ class NPZDataSet:
         return records
 
 
-    # ---- transforms ------------------------------------------------------ #
-    # THIS IS A GOOD PLACE TO EXPLORE 
-    # ---------------------------------------------------------------------- #
+    # ====================================================
+    # CHALLENGE EXPERIMENT AREA: data processing pipeline
+    # ====================================================
     def _deterministic_transforms(self, include_dose=True):
         tensor_keys = INPUT_KEYS + (["dose"] if include_dose else [])
         return [

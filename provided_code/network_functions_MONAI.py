@@ -5,6 +5,7 @@ However, the inner workings were changed from keras/tensorflow to MONAI/torch
 
 """
 from __future__ import annotations
+from typing import Any
 
 from pathlib import Path
 
@@ -13,7 +14,7 @@ import torch
 from monai.inferers import sliding_window_inference
 from tqdm.auto import tqdm
 
-from .monai_data import DOSE_SCALE, NPZDataSet
+from .monai_data import DOSE_SCALE
 from .network_architectures_MONAI import DosePredictionModel
 
 
@@ -138,6 +139,7 @@ class PredictionModel:
                 "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
+                "scaler_state_dict": self.scaler.state_dict(),
             },
             self._checkpoint_path(epoch),
         )
@@ -164,6 +166,7 @@ class PredictionModel:
             checkpoint["model_state_dict"]
         )
 
+
     def _trim_model_history(
         self,
         keep_model_history: int,
@@ -184,18 +187,58 @@ class PredictionModel:
                 missing_ok=True
             )
 
+    def _check_overwrite_dir(
+            self
+    )->None: 
+        checkpoints = self.model_dir.glob("epoch_*.pt")
+        if checkpoints: 
+            print(f"Model directory {self.model_dir} is not empty.")
+            cont = input("Coninue? WARNING: The model checkpoints will be deleted! Type 'y' or 'n':")
+            if cont == 'y':
+                for cp in checkpoints: 
+                    cp.unlink(missing_ok=True)
+            else: 
+                raise RuntimeError('Model directory not empty, please use a different model name')
+
     def train_model(
         self,
         num_epochs: int,
         save_frequency: int = 1,
         keep_model_history: int = 20,
+        resume_from: str | Path = None
     ) -> None:
+
+       
+
+        start_epoch = 1
+
+        if resume_from is not None:
+            checkpoint = torch.load(
+                resume_from,
+                map_location=self.device,
+            )
+
+            self.model.load_state_dict(
+                checkpoint["model_state_dict"]
+            )
+            self.optimizer.load_state_dict(
+                checkpoint["optimizer_state_dict"]
+            )
+
+            if "scaler_state_dict" in checkpoint:
+                self.scaler.load_state_dict(
+                    checkpoint["scaler_state_dict"]
+                )
+
+            start_epoch = checkpoint["epoch"] + 1
+        else: 
+            self._check_overwrite_dir()
 
         data_loader = self.data_loader
 
         
         for epoch in range(
-            1,
+            start_epoch,
             num_epochs + 1,
         ):
             self.model.train()
@@ -266,7 +309,7 @@ class PredictionModel:
 
                 progress.set_postfix(
                     masked_mae_gy=(
-                        f"{DOSE_SCALE * running_loss / n_batches:.3f}"
+                        f"{DOSE_SCALE * running_loss / n_batches:.3f}" ##Running loss is normalized, and summed over all batches
                     )
                 )
 
